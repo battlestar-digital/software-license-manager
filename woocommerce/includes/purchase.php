@@ -33,14 +33,13 @@ function wc_slm_on_complete_purchase($order_id) {
 
 function wc_slm_create_license_keys($order_id) {
 
-	// SLM_Helper_Class::write_log('loading wc_slm_create_license_keys');
+	//SLM_Helper_Class::write_log('loading wc_slm_create_license_keys');
 
 	$order_id 			= wc_get_order($order_id);
 	$purchase_id_ 		= $order_id->get_id();
 	$variations_items_ 	= $order_id->get_items();
 
-	// SLM_Helper_Class::write_log('purchase_id_ -- '.$purchase_id_ );
-	// SLM_Helper_Class::write_log('purchase_id_ -- '.$user_id  );
+	//SLM_Helper_Class::write_log('purchase_id_ -- '.$purchase_id_ );	
 
 	global $user_id;
 
@@ -52,18 +51,22 @@ function wc_slm_create_license_keys($order_id) {
 	$payment_meta['user_info']['email'] 	 	= $get_user_meta['billing_email'][0];
 	$payment_meta['user_info']['company'] 	 	= $get_user_meta['billing_company'][0];
 
-	// SLM_Helper_Class::write_log('user_id -- '.$user_id  );
+	//SLM_Helper_Class::write_log('user_id -- '.$user_id  );
 
 	// Collect license keys
 	$licenses = array();
 	$items = $order_id->get_items();
+    //SLM_Helper_Class::write_log('order_id -- '.$order_id  );
 
 
 	foreach ($items as $item => $values) {
+        //SLM_Helper_Class::write_log('Entered foreach -- ' );
 		$download_id 	= $product_id = $values['product_id'];
 		$product 		= new WC_Product($product_id);
 
 		$download_quantity = absint($values['qty']);
+        //SLM_Helper_Class::write_log('download_quantity -- '.$download_quantity  );
+
 		for ($i = 1; $i <= $download_quantity; $i++) {
 			/**
 			 * Calculate Expire date
@@ -92,6 +95,10 @@ function wc_slm_create_license_keys($order_id) {
 			$devices_allowed 		= wc_slm_get_devices_allowed($product_id);
 			$amount_of_licenses 	= wc_slm_get_licenses_qty($product_id);
 
+            //SLM_Helper_Class::write_log('sites_allowed -- '.$sites_allowed  );
+            //SLM_Helper_Class::write_log('devices_allowed -- '.$devices_allowed  );
+            //SLM_Helper_Class::write_log('amount_of_licenses -- '.$amount_of_licenses  );
+
 			if (!$sites_allowed) {
 				$sites_allowed_error = __('License could not be created: Invalid sites allowed number.', 'softwarelicensemanager');
 				$int = wc_insert_payment_note($purchase_id_, $sites_allowed_error);
@@ -103,6 +110,7 @@ function wc_slm_create_license_keys($order_id) {
 
 			// Get the order ID
 			$order_id = $order->get_id();
+            //SLM_Helper_Class::write_log('order_id -- '.$order_id  );
 
 			// Get the custumer ID
 			// $user_id = $order->get_user_id();
@@ -110,7 +118,7 @@ function wc_slm_create_license_keys($order_id) {
 
 			// Iterating through each WC_Order_Item objects
 			foreach( $order-> get_items() as $item_key => $item_values ){
-
+                //SLM_Helper_Class::write_log('Entered foreach -- '.$order  );
 				## Using WC_Order_Item methods ##
 				$item_id 			= $item_values->get_id();
 				$item_name 			= $item_values->get_name();
@@ -139,9 +147,11 @@ function wc_slm_create_license_keys($order_id) {
 
 			// Transaction id
 			$transaction_id = wc_get_payment_transaction_id($product_id);
+            //SLM_Helper_Class::write_log('transaction_id -- '.$transaction_id  );
 
 			// Build item name
 			$item_name = $product->get_title();
+            //SLM_Helper_Class::write_log('item_name -- '.$item_name  );
 
 			// Build parameters
 			$api_params = array();
@@ -169,9 +179,11 @@ function wc_slm_create_license_keys($order_id) {
 			$url 			= SLM_SITE_URL . '?' . http_build_query($api_params);
 			$url 			= str_replace(array('http://', 'https://'), '', $url);
 			$url 			= 'http://' . $url;
-			$response 		= wp_remote_get($url, array('timeout' => 20, 'sslverify' => false));
+            error_log("url to call: ${url}");
+			$response 		= wp_remote_get($url, array('timeout' => 20, 'sslverify' => false));              
+            
 			$license_key 	= wc_slm_get_license_key($response);
-
+            error_log("license_key: ${license_key}");
 			// Collect license keys
 			if ($license_key) {
 				$licenses[] = array(
@@ -195,13 +207,25 @@ function wc_slm_create_license_keys($order_id) {
 }
 
 function wc_slm_get_license_key($response) {
+
 	// Check for error in the response
 	if (is_wp_error($response)) {
 		return false;
 	}
+    error_log("the response is:");
+    error_log( print_r($response , true));
+    
 	// Get License data
-	$json = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', utf8_encode(wp_remote_retrieve_body($response)));
+    $testBody = wp_remote_retrieve_body($response);
+    error_log("the testBody is:");
+    error_log( print_r($testBody , true));
+
+    $json = preg_replace('/[\x00-\x1F\x80-\xFF]/', '', utf8_encode(wp_remote_retrieve_body($response)));
+    error_log("the json is:");
+    error_log( print_r($json , true));
 	$license_data = json_decode($json);
+    error_log("license_data:");
+    error_log( print_r($license_data , true));
 
 	if (!isset($license_data->key)) {
 		return false;
@@ -352,7 +376,7 @@ function slm_order_completed( $order_id ) {
 	$order->add_order_note( $note );
 	// Save the data
 	$order->save();
-	//SLM_Helper_Class::write_log($to_email . 'License details'. $message . $headers );
+	//SLM_Helper_Class::write_log($order_billing_email . 'License details'. $message . $headers );
 }
 
 function slm_show_msg( $order_id ) {
@@ -452,6 +476,8 @@ add_action('woocommerce_email_before_order_table', 'slm_add_license_to_order_con
 function slm_add_license_to_order_confirmation($order, $sent_to_admin, $plain_text, $email)
 {
 	if ($email->id == 'customer_completed_order') {
+        $license_key = get_post_meta($order->get_id(), 'slm_wc_license_order_key', true);
+        
 		echo '
 		<table class="td" cellspacing="0" cellpadding="6" border="1" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; width: 100%; font-family:"Helvetica Neue", Helvetica, Roboto, Arial, sans-serif; margin-bottom: 40px;"> <thead> <tr> <th class="td" scope="col" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;"> License key</th> </tr> </thead> <tbody> <tr> <td class="td" style="color: #636363; border: 1px solid #e5e5e5; vertical-align: middle; padding: 12px; text-align: left;"> ' . get_post_meta($order->get_id(), 'slm_wc_license_order_key', true) . ' </td> </tr> </tbody> </table><br><br>
 		';
